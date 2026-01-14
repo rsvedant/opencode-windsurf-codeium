@@ -189,40 +189,218 @@ function buildChatRequest(
 }
 
 // ============================================================================
-// Response Parsing
+// Response Parsing (Protobuf Decoding)
 // ============================================================================
+
+/**
+ * Decode a varint from a buffer starting at offset
+ * @returns [value, bytesRead]
+ */
+function decodeVarint(buffer: Buffer, offset: number): [bigint, number] {
+  let result = 0n;
+  let shift = 0n;
+  let bytesRead = 0;
+  
+  while (offset + bytesRead < buffer.length) {
+    const byte = buffer[offset + bytesRead];
+    bytesRead++;
+    result |= BigInt(byte & 0x7f) << shift;
+    if ((byte & 0x80) === 0) {
+      break;
+    }
+    shift += 7n;
+  }
+  
+  return [result, bytesRead];
+}
+
+/**
+ * Parse a protobuf field from buffer
+ * @returns { fieldNum, wireType, value, bytesConsumed } or null if can't parse
+ */
+function parseProtobufField(buffer: Buffer, offset: number): { 
+  fieldNum: number; 
+  wireType: number; 
+  value: Buffer | bigint; 
+  bytesConsumed: number 
+} | null {
+  if (offset >= buffer.length) return null;
+  
+  const [tag, tagBytes] = decodeVarint(buffer, offset);
+  const fieldNum = Number(tag >> 3n);
+  const wireType = Number(tag & 0x7n);
+  
+  let bytesConsumed = tagBytes;
+  let value: Buffer | bigint;
+  
+  switch (wireType) {
+    case 0: // Varint
+      const [varintValue, varintBytes] = decodeVarint(buffer, offset + bytesConsumed);
+      value = varintValue;
+      bytesConsumed += varintBytes;
+      break;
+      
+    case 2: // Length-delimited (string, bytes, embedded message)
+      const [length, lengthBytes] = decodeVarint(buffer, offset + bytesConsumed);
+      bytesConsumed += lengthBytes;
+      const len = Number(length);
+      if (offset + bytesConsumed + len > buffer.length) {
+        // Not enough data
+        return null;
+      }
+      value = buffer.subarray(offset + bytesConsumed, offset + bytesConsumed + len);
+      bytesConsumed += len;
+      break;
+      
+    case 1: // 64-bit (fixed64, sfixed64, double)
+      if (offset + bytesConsumed + 8 > buffer.length) return null;
+      value = buffer.subarray(offset + bytesConsumed, offset + bytesConsumed + 8);
+      bytesConsumed += 8;
+      break;
+      
+    case 5: // 32-bit (fixed32, sfixed32, float)
+      if (offset + bytesConsumed + 4 > buffer.length) return null;
+      value = buffer.subarray(offset + bytesConsumed, offset + bytesConsumed + 4);
+      bytesConsumed += 4;
+      break;
+      
+    default:
+      // Unknown wire type, can't parse
+      return null;
+  }
+  
+  return { fieldNum, wireType, value, bytesConsumed };
+}
+
+/**
+ * Extract text from RawChatMessage protobuf
+ * 
+ * RawChatMessage structure:
+ * Field 1: message_id (string)
+ * Field 2: source (enum)
+ * Field 3: timestamp (message)
+ * Field 4: conversation_id (string)
+ * Field 5: text (string) ← What we want
+ * Field 6: in_progress (bool)
+ * Field 7: is_error (bool)
+ */
+function extractTextFromRawChatMessage(buffer: Buffer): string {
+  let offset = 0;
+  
+  while (offset < buffer.length) {
+    const field = parseProtobufField(buffer, offset);
+    if (!field) break;
+    
+    offset += field.bytesConsumed;
+    
+    // Field 5 is the text content
+    if (field.fieldNum === 5 && field.wireType === 2 && Buffer.isBuffer(field.value)) {
+      return field.value.toString('utf8');
+    }
+  }
+  
+  return '';
+}
+
+/**
+ * Extract text from RawGetChatMessageResponse protobuf
+ * 
+ * RawGetChatMessageResponse structure:
+ * Field 1: delta_message (RawChatMessage)
+ */
+function extractTextFromResponse(buffer: Buffer): string {
+  let offset = 0;
+  
+  while (offset < buffer.length) {
+    const field = parseProtobufField(buffer, offset);
+    if (!field) break;
+    
+    offset += field.bytesConsumed;
+    
+    // Field 1 is delta_message (RawChatMessage)
+    if (field.fieldNum === 1 && field.wireType === 2 && Buffer.isBuffer(field.value)) {
+      const text = extractTextFromRawChatMessage(field.value);
+      if (text) return text;
+    }
+  }
+  
+  return '';
+}
 
 /**
  * Extract readable text from a gRPC response chunk
  * 
- * The response is in protobuf format, but we do a simple heuristic extraction
- * since we don't need full protobuf decoding for text content.
+ * The response is gRPC-framed: 1 byte compression + 4 bytes length + protobuf payload
+ * We parse the protobuf to extract the text field from RawChatMessage.
  */
 function extractTextFromChunk(chunk: Buffer): string {
+  // gRPC frame: 1 byte compression flag + 4 bytes message length + message
+  // Multiple messages may be concatenated in a single chunk
+  
+  const results: string[] = [];
+  let offset = 0;
+  
+  while (offset + 5 <= chunk.length) {
+    const compressed = chunk[offset];
+    const messageLength = chunk.readUInt32BE(offset + 1);
+    
+    if (compressed !== 0) {
+      // Compressed data not supported, skip
+      offset += 5 + messageLength;
+      continue;
+    }
+    
+    if (offset + 5 + messageLength > chunk.length) {
+      // Not enough data for the full message, try as raw protobuf
+      break;
+    }
+    
+    const messageData = chunk.subarray(offset + 5, offset + 5 + messageLength);
+    const text = extractTextFromResponse(messageData);
+    
+    if (text) {
+      results.push(text);
+    }
+    
+    offset += 5 + messageLength;
+  }
+  
+  // If we extracted text from proper protobuf parsing, return it
+  if (results.length > 0) {
+    return results.join('');
+  }
+  
+  // Fallback: try parsing the entire chunk as protobuf (in case framing was already stripped)
+  const fallbackText = extractTextFromResponse(chunk);
+  if (fallbackText) {
+    return fallbackText;
+  }
+  
+  // Last resort: heuristic extraction for edge cases
+  return extractTextHeuristic(chunk);
+}
+
+/**
+ * Fallback heuristic text extraction for edge cases
+ */
+function extractTextHeuristic(chunk: Buffer): string {
   // Convert to string, filtering out non-printable characters
   const readable = chunk
     .toString('utf8')
-    .replace(/[^\x20-\x7E\n]/g, ' ')
+    .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 
-  // Try to extract text after asterisk marker
-  const textMatch = readable.match(/\*\s*([^0]+)/);
-  if (textMatch) {
-    return textMatch[1].trim();
-  }
-
-  // Fallback: split on multiple spaces and find meaningful content
+  // Look for text content that doesn't look like UUIDs or binary artifacts
   const parts = readable.split(/\s{2,}/);
   for (const part of parts) {
+    const cleaned = part.trim();
     if (
-      part.length > 0 &&
-      !part.includes('-') &&
-      !part.match(/^[a-f0-9-]+$/i)
+      cleaned.length > 2 &&
+      !cleaned.match(/^[a-f0-9-]{8,}$/i) && // Not a UUID
+      !cleaned.match(/^[\x00-\x1f\x7f-\xff]+$/) // Not binary
     ) {
-      const cleaned = part.replace(/^[\s\d*]+/, '').trim();
-      if (cleaned.length > 0) {
-        return cleaned;
-      }
+      return cleaned;
     }
   }
 
