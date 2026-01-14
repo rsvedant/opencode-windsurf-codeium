@@ -1,0 +1,52 @@
+{
+  "name": "opencode-windsurf-auth",
+  "version": "0.1.0",
+  "description": "OpenCode plugin for Windsurf/Codeium authentication - use Windsurf models in OpenCode",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "opencode",
+    "windsurf",
+    "codeium",
+    "cascade",
+    "ai",
+    "plugin",
+    "authentication"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@connectrpc/connect": "^2.0.0",
+    "@connectrpc/connect-web": "^2.0.0",
+    "@bufbuild/protobuf": "^2.0.0",
+    "proper-lockfile": "^4.1.2",
+    "xdg-basedir": "^5.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^0.15.30",
+    "@types/node": "^22.0.0",
+    "@types/proper-lockfile": "^4.1.4",
+    "typescript": "^5.7.0",
+    "vitest": "^2.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
