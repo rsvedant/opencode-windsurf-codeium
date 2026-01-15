@@ -34,6 +34,178 @@ interface ChatCompletionRequest {
   stream?: boolean;
   temperature?: number;
   max_tokens?: number;
+  tools?: Array<{
+    type?: string;
+    function?: {
+      name?: string;
+      description?: string;
+      parameters?: any;
+    };
+  }>;
+}
+
+async function runWindsurfOnce(
+  credentials: WindsurfCredentials,
+  model: string,
+  prompt: string
+): Promise<string> {
+  const chunks: string[] = [];
+  const generator = streamChatGenerator(credentials, {
+    model,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  for await (const chunk of generator) {
+    chunks.push(chunk);
+  }
+  return chunks.join('');
+}
+
+async function planToolCall(
+  credentials: WindsurfCredentials,
+  request: ChatCompletionRequest
+): Promise<{ plan: ToolCallPlan | null; content: string; model: string }> {
+  const model = request.model || getDefaultModel();
+  const prompt = buildToolPrompt(request);
+  const content = await runWindsurfOnce(credentials, model, prompt);
+  const plan = parseToolCallPlan(content);
+  return { plan, content, model };
+}
+
+function buildToolCallPayload(model: string, toolCalls: Array<{ name: string; arguments: any }>) {
+  const mapped = toolCalls.map((tc, i) => ({
+    id: `call_${Date.now()}_${i}`,
+    type: 'function',
+    function: {
+      name: tc.name,
+      arguments: JSON.stringify(tc.arguments ?? {}),
+    },
+  }));
+
+  return {
+    id: `windsurf-tools-${Date.now()}`,
+    object: 'chat.completion' as const,
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: 'assistant' as const,
+          content: '',
+          tool_calls: mapped,
+        },
+        finish_reason: 'tool_calls' as const,
+      },
+    ],
+  };
+}
+
+async function handleToolPlanning(
+  credentials: WindsurfCredentials,
+  request: ChatCompletionRequest
+): Promise<Response> {
+  const { plan, content, model } = await planToolCall(credentials, request);
+
+  if (plan?.action === 'tool_call') {
+    const payload = buildToolCallPayload(model, plan.tool_calls);
+    return new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const finalContent = plan?.action === 'final' ? plan.content : content;
+  const payload = {
+    id: `windsurf-tools-${Date.now()}`,
+    object: 'chat.completion' as const,
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [
+      {
+        index: 0,
+        message: { role: 'assistant' as const, content: finalContent },
+        finish_reason: 'stop' as const,
+      },
+    ],
+  };
+
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function handleToolPlanningStream(
+  credentials: WindsurfCredentials,
+  request: ChatCompletionRequest
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        const { plan, content, model } = await planToolCall(credentials, request);
+        const id = `windsurf-tools-${Date.now()}`;
+        const created = Math.floor(Date.now() / 1000);
+
+        if (plan?.action === 'tool_call') {
+          const mapped = plan.tool_calls.map((tc, i) => ({
+            index: i,
+            id: `call_${Date.now()}_${i}`,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments ?? {}),
+            },
+          }));
+
+          const chunk = {
+            id,
+            object: 'chat.completion.chunk',
+            created,
+            model,
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  role: 'assistant',
+                  tool_calls: mapped,
+                },
+                finish_reason: 'tool_calls' as const,
+              },
+            ],
+          };
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+          return;
+        }
+
+        const finalContent = plan?.action === 'final' ? plan.content : content;
+        const finalChunk = {
+          id,
+          object: 'chat.completion.chunk',
+          created,
+          model,
+          choices: [
+            {
+              index: 0,
+              delta: { content: finalContent },
+              finish_reason: 'stop' as const,
+            },
+          ],
+        };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: { message: msg } })}\n\n`));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      }
+    },
+  });
 }
 
 interface ChatCompletionChunk {
@@ -63,6 +235,108 @@ interface ChatCompletionResponse {
 // ============================================================================
 // Response Helpers
 // ============================================================================
+
+type ToolDef = NonNullable<ChatCompletionRequest['tools']>[number];
+
+function summarizeTool(tool: ToolDef): string {
+  const name = tool?.function?.name || 'unknown';
+  const description = tool?.function?.description || '';
+  const params = tool?.function?.parameters;
+
+  let paramsSummary = '';
+  if (params && typeof params === 'object') {
+    const props = params.properties && typeof params.properties === 'object' ? Object.keys(params.properties) : [];
+    const required = Array.isArray(params.required) ? params.required : [];
+    paramsSummary = `args: { ${props.join(', ')} } required: [${required.join(', ')}]`;
+  }
+
+  return `- ${name}${description ? `: ${description}` : ''}${paramsSummary ? ` (${paramsSummary})` : ''}`;
+}
+
+function extractTextParts(content: string | Array<{ type: string; text?: string }>): string {
+  if (typeof content === 'string') return content;
+  return content.map((p) => (p?.type === 'text' && p.text ? p.text : '')).filter(Boolean).join('\n');
+}
+
+function buildToolPrompt(request: ChatCompletionRequest): string {
+  const tools = Array.isArray(request.tools) ? request.tools : [];
+  const toolList = tools.length ? tools.map(summarizeTool).join('\n') : '(none)';
+
+  const systemMessages = request.messages.filter((m) => m.role === 'system');
+  const systemText = systemMessages.map((m) => extractTextParts(m.content)).filter(Boolean).join('\n\n');
+
+  const conversationLines: string[] = [];
+  for (const message of request.messages) {
+    const role = message.role || 'user';
+    if (role === 'system') continue; // already aggregated
+    if (role === 'tool') {
+      const content = extractTextParts(message.content);
+      const name = (message as any).name || 'tool';
+      const toolCallId = (message as any).tool_call_id;
+      conversationLines.push(`TOOL RESULT (${name}${toolCallId ? `, id=${toolCallId}` : ''}): ${content}`);
+      continue;
+    }
+    if (role === 'assistant' && Array.isArray((message as any).tool_calls)) {
+      conversationLines.push(`ASSISTANT TOOL_CALLS: ${JSON.stringify((message as any).tool_calls)}`);
+      continue;
+    }
+    const content = extractTextParts(message.content);
+    if (content) {
+      conversationLines.push(`${role.toUpperCase()}: ${content}`);
+    }
+  }
+
+  return [
+    'You are a tool-calling assistant running inside OpenCode.',
+    systemText ? `System: ${systemText}` : '',
+    '',
+    'Available tools:',
+    toolList,
+    '',
+    'STRICT OUTPUT:',
+    '- Output MUST be exactly one JSON object and nothing else.',
+    '- If you output anything outside JSON, your answer is discarded.',
+    '',
+    'RESPONSE FORMAT:',
+    '- Call tool(s):',
+    '{"action":"tool_call","tool_calls":[{"name":"tool_name","arguments":{"arg":"value"}}]}',
+    '- Final answer:',
+    '{"action":"final","content":"..."}',
+    '',
+    'Conversation:',
+    conversationLines.join('\n\n'),
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+type ToolCallPlan =
+  | { action: 'final'; content: string }
+  | { action: 'tool_call'; tool_calls: Array<{ name: string; arguments: any }> };
+
+function parseToolCallPlan(output: string): ToolCallPlan | null {
+  const start = output.indexOf('{');
+  const end = output.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+  const jsonText = output.slice(start, end + 1);
+  try {
+    const parsed = JSON.parse(jsonText);
+    if (parsed && parsed.action === 'final' && typeof parsed.content === 'string') {
+      return { action: 'final', content: parsed.content };
+    }
+    if (parsed && parsed.action === 'tool_call' && Array.isArray(parsed.tool_calls)) {
+      return {
+        action: 'tool_call',
+        tool_calls: parsed.tool_calls
+          .filter((t: any) => t && typeof t.name === 'string')
+          .map((t: any) => ({ name: t.name, arguments: t.arguments ?? {} })),
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Create an OpenAI-compatible response object
@@ -297,6 +571,22 @@ async function ensureWindsurfProxyServer(): Promise<string> {
           const body = await req.json().catch(() => ({}));
           const requestBody = body as ChatCompletionRequest;
           const isStreaming = requestBody.stream === true;
+
+          // If tools are requested, run local planning loop (non-streaming only).
+          if (Array.isArray(requestBody.tools) && requestBody.tools.length > 0) {
+            if (isStreaming) {
+              const stream = handleToolPlanningStream(credentials, requestBody);
+              return new Response(stream, {
+                status: 200,
+                headers: {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  Connection: 'keep-alive',
+                },
+              });
+            }
+            return await handleToolPlanning(credentials, requestBody);
+          }
 
           if (isStreaming) {
             const stream = createStreamingResponse(credentials, requestBody);
