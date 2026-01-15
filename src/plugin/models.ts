@@ -11,8 +11,252 @@
 
 import { ModelEnum, type ModelEnumValue } from './types.js';
 
+// ==========================================================================
+// Variant-aware catalog
+// ==========================================================================
+
+type VariantName = string;
+
+type VariantMeta = {
+  /** Human-oriented hint used in /v1/models variants payload */
+  description?: string;
+  /** Maps to Windsurf enum */
+  enumValue: ModelEnumValue;
+};
+
+type ModelCatalogEntry = {
+  /** Canonical model id exposed to OpenCode */
+  id: string;
+  /** Default enum when no variant supplied */
+  defaultEnum: ModelEnumValue;
+  /** Optional variants keyed by variant name (lowercase) */
+  variants?: Record<VariantName, VariantMeta>;
+  /** Aliases accepted for backwards compatibility */
+  aliases?: string[];
+};
+
+// ==========================================================================
+// Variant Catalog
+// ==========================================================================
+
+const VARIANT_CATALOG: Record<string, ModelCatalogEntry> = {
+  // Claude thinking variants
+  'claude-3.7-sonnet': {
+    id: 'claude-3.7-sonnet',
+    defaultEnum: ModelEnum.CLAUDE_3_7_SONNET_20250219,
+    variants: {
+      thinking: { enumValue: ModelEnum.CLAUDE_3_7_SONNET_20250219_THINKING, description: 'Thinking mode' },
+    },
+  },
+  'claude-4.5-sonnet': {
+    id: 'claude-4.5-sonnet',
+    defaultEnum: ModelEnum.CLAUDE_4_5_SONNET,
+    variants: {
+      thinking: { enumValue: ModelEnum.CLAUDE_4_5_SONNET_THINKING, description: 'Thinking mode' },
+    },
+  },
+  'claude-4.5-opus': {
+    id: 'claude-4.5-opus',
+    defaultEnum: ModelEnum.CLAUDE_4_5_OPUS,
+    variants: {
+      thinking: { enumValue: ModelEnum.CLAUDE_4_5_OPUS_THINKING, description: 'Thinking mode' },
+    },
+  },
+  'claude-4.1-opus': {
+    id: 'claude-4.1-opus',
+    defaultEnum: ModelEnum.CLAUDE_4_1_OPUS,
+    variants: {
+      thinking: { enumValue: ModelEnum.CLAUDE_4_1_OPUS_THINKING, description: 'Thinking mode' },
+    },
+    aliases: ['claude-4-1-opus'],
+  },
+  'claude-4-opus': {
+    id: 'claude-4-opus',
+    defaultEnum: ModelEnum.CLAUDE_4_OPUS,
+    variants: {
+      thinking: { enumValue: ModelEnum.CLAUDE_4_OPUS_THINKING, description: 'Thinking mode' },
+    },
+  },
+  'claude-4-sonnet': {
+    id: 'claude-4-sonnet',
+    defaultEnum: ModelEnum.CLAUDE_4_SONNET,
+    variants: {
+      thinking: { enumValue: ModelEnum.CLAUDE_4_SONNET_THINKING, description: 'Thinking mode' },
+    },
+  },
+
+  // Google Gemini 2.5 / 3.0
+  'gemini-2.5-flash': {
+    id: 'gemini-2.5-flash',
+    defaultEnum: ModelEnum.GEMINI_2_5_FLASH,
+    variants: {
+      thinking: { enumValue: ModelEnum.GEMINI_2_5_FLASH_THINKING, description: 'Thinking budget enabled' },
+      lite: { enumValue: ModelEnum.GEMINI_2_5_FLASH_LITE, description: 'Lite / lower cost' },
+    },
+    aliases: ['gemini-2-5-flash'],
+  },
+  // Google Gemini 3.0 Pro
+  'gemini-3.0-pro': {
+    id: 'gemini-3.0-pro',
+    defaultEnum: ModelEnum.GEMINI_3_0_PRO_MEDIUM,
+    variants: {
+      minimal: { enumValue: ModelEnum.GEMINI_3_0_PRO_MINIMAL, description: 'Cheaper, least reasoning' },
+      low: { enumValue: ModelEnum.GEMINI_3_0_PRO_LOW, description: 'Lower cost / speed' },
+      medium: { enumValue: ModelEnum.GEMINI_3_0_PRO_MEDIUM, description: 'Balanced (default)' },
+      high: { enumValue: ModelEnum.GEMINI_3_0_PRO_HIGH, description: 'Higher reasoning budget' },
+    },
+    aliases: ['gemini-3-0-pro'],
+  },
+  // Google Gemini 3.0 Flash
+  'gemini-3.0-flash': {
+    id: 'gemini-3.0-flash',
+    defaultEnum: ModelEnum.GEMINI_3_0_FLASH_MEDIUM,
+    variants: {
+      minimal: { enumValue: ModelEnum.GEMINI_3_0_FLASH_MINIMAL, description: 'Cheapest, lowest latency' },
+      low: { enumValue: ModelEnum.GEMINI_3_0_FLASH_LOW, description: 'Low thinking budget' },
+      medium: { enumValue: ModelEnum.GEMINI_3_0_FLASH_MEDIUM, description: 'Balanced (default)' },
+      high: { enumValue: ModelEnum.GEMINI_3_0_FLASH_HIGH, description: 'Higher reasoning budget' },
+    },
+    aliases: ['gemini-3-0-flash'],
+  },
+  // GPT 5.2
+  'gpt-5.2': {
+    id: 'gpt-5.2',
+    defaultEnum: ModelEnum.GPT_5_2_MEDIUM,
+    variants: {
+      low: { enumValue: ModelEnum.GPT_5_2_LOW, description: 'Lower cost' },
+      medium: { enumValue: ModelEnum.GPT_5_2_MEDIUM, description: 'Balanced (default)' },
+      high: { enumValue: ModelEnum.GPT_5_2_HIGH, description: 'Higher capability' },
+      xhigh: { enumValue: ModelEnum.GPT_5_2_XHIGH, description: 'Maximum capability' },
+      priority: { enumValue: ModelEnum.GPT_5_2_MEDIUM_PRIORITY, description: 'Priority routing (medium)' },
+      'low-priority': { enumValue: ModelEnum.GPT_5_2_LOW_PRIORITY, description: 'Priority routing (low)' },
+      'high-priority': { enumValue: ModelEnum.GPT_5_2_HIGH_PRIORITY, description: 'Priority routing (high)' },
+      'xhigh-priority': { enumValue: ModelEnum.GPT_5_2_XHIGH_PRIORITY, description: 'Priority routing (xhigh)' },
+    },
+    aliases: ['gpt-5-2'],
+  },
+  // GPT 5
+  'gpt-5': {
+    id: 'gpt-5',
+    defaultEnum: ModelEnum.GPT_5,
+    variants: {
+      low: { enumValue: ModelEnum.GPT_5_LOW, description: 'Lower cost' },
+      high: { enumValue: ModelEnum.GPT_5_HIGH, description: 'Higher capability' },
+      nano: { enumValue: ModelEnum.GPT_5_NANO, description: 'Small footprint' },
+    },
+  },
+  // GPT 5.1 Codex families
+  'gpt-5.1-codex-mini': {
+    id: 'gpt-5.1-codex-mini',
+    defaultEnum: ModelEnum.GPT_5_1_CODEX_MINI_MEDIUM,
+    variants: {
+      low: { enumValue: ModelEnum.GPT_5_1_CODEX_MINI_LOW },
+      medium: { enumValue: ModelEnum.GPT_5_1_CODEX_MINI_MEDIUM },
+      high: { enumValue: ModelEnum.GPT_5_1_CODEX_MINI_HIGH },
+    },
+    aliases: ['gpt-5-1-codex-mini'],
+  },
+  'gpt-5.1-codex': {
+    id: 'gpt-5.1-codex',
+    defaultEnum: ModelEnum.GPT_5_1_CODEX_MEDIUM,
+    variants: {
+      low: { enumValue: ModelEnum.GPT_5_1_CODEX_LOW },
+      medium: { enumValue: ModelEnum.GPT_5_1_CODEX_MEDIUM },
+      high: { enumValue: ModelEnum.GPT_5_1_CODEX_HIGH },
+    },
+    aliases: ['gpt-5-1-codex'],
+  },
+  'gpt-5.1-codex-max': {
+    id: 'gpt-5.1-codex-max',
+    defaultEnum: ModelEnum.GPT_5_1_CODEX_MAX_MEDIUM,
+    variants: {
+      low: { enumValue: ModelEnum.GPT_5_1_CODEX_MAX_LOW },
+      medium: { enumValue: ModelEnum.GPT_5_1_CODEX_MAX_MEDIUM },
+      high: { enumValue: ModelEnum.GPT_5_1_CODEX_MAX_HIGH },
+    },
+    aliases: ['gpt-5-1-codex-max'],
+  },
+  // O series
+  o3: {
+    id: 'o3',
+    defaultEnum: ModelEnum.O3,
+    variants: {
+      low: { enumValue: ModelEnum.O3_LOW },
+      high: { enumValue: ModelEnum.O3_HIGH },
+    },
+  },
+  'o3-pro': {
+    id: 'o3-pro',
+    defaultEnum: ModelEnum.O3_PRO,
+    variants: {
+      low: { enumValue: ModelEnum.O3_PRO_LOW },
+      high: { enumValue: ModelEnum.O3_PRO_HIGH },
+    },
+  },
+  'o4-mini': {
+    id: 'o4-mini',
+    defaultEnum: ModelEnum.O4_MINI,
+    variants: {
+      low: { enumValue: ModelEnum.O4_MINI_LOW },
+      high: { enumValue: ModelEnum.O4_MINI_HIGH },
+    },
+  },
+};
+
+const VARIANT_NAME_SET = new Set<string>();
+for (const entry of Object.values(VARIANT_CATALOG)) {
+  if (entry.variants) {
+    for (const variantKey of Object.keys(entry.variants)) {
+      VARIANT_NAME_SET.add(`${entry.id}-${variantKey}`);
+      if (entry.aliases) {
+        for (const alias of entry.aliases) {
+          VARIANT_NAME_SET.add(`${alias}-${variantKey}`);
+        }
+      }
+    }
+  }
+}
+
+// Mapping of alias -> canonical id for quick lookup
+const ALIAS_TO_ID: Record<string, string> = Object.values(VARIANT_CATALOG).reduce(
+  (acc, entry) => {
+    acc[entry.id] = entry.id;
+    for (const alias of entry.aliases || []) {
+      acc[alias] = entry.id;
+    }
+    return acc;
+  },
+  {} as Record<string, string>
+);
+
+function normalizeModelId(modelName: string): string {
+  return modelName.toLowerCase().trim();
+}
+
+function splitModelAndVariant(raw: string): { base: string; variant?: string } {
+  const normalized = normalizeModelId(raw);
+  // Allow colon-delimited (opencode variants) or suffix "-<variant>"
+  const colonIdx = normalized.indexOf(':');
+  if (colonIdx !== -1) {
+    const base = normalized.slice(0, colonIdx);
+    const variant = normalized.slice(colonIdx + 1).trim();
+    return { base, variant: variant || undefined };
+  }
+
+  const parts = normalized.split('-');
+  if (parts.length > 1) {
+    const maybeVariant = parts[parts.length - 1];
+    const base = parts.slice(0, -1).join('-');
+    if (VARIANT_CATALOG[ALIAS_TO_ID[base] || base]?.variants?.[maybeVariant]) {
+      return { base, variant: maybeVariant };
+    }
+  }
+
+  return { base: normalized };
+}
+
 // ============================================================================
-// Model Name Mappings
+// Model Name Mappings (legacy fallback)
 // ============================================================================
 
 /**
@@ -373,14 +617,42 @@ const ENUM_TO_MODEL_NAME: Partial<Record<ModelEnumValue, string>> = {
 // Public API
 // ============================================================================
 
+export function resolveModel(modelName: string, variantOverride?: string): {
+  enumValue: ModelEnumValue;
+  modelId: string;
+  variant?: string;
+} {
+  const { base, variant } = splitModelAndVariant(modelName);
+  const baseId = ALIAS_TO_ID[base] || base;
+
+  const entry = VARIANT_CATALOG[baseId];
+  if (entry) {
+    const effectiveVariant = (variantOverride || variant || '').trim().toLowerCase();
+    if (effectiveVariant && entry.variants?.[effectiveVariant]) {
+      return {
+        enumValue: entry.variants[effectiveVariant]!.enumValue,
+        modelId: entry.id,
+        variant: effectiveVariant,
+      };
+    }
+    return { enumValue: entry.defaultEnum, modelId: entry.id };
+  }
+
+  // Fallback to legacy map
+  const normalized = normalizeModelId(modelName);
+  const enumValue = MODEL_NAME_TO_ENUM[normalized];
+  if (enumValue) {
+    return { enumValue, modelId: normalized };
+  }
+
+  return { enumValue: ModelEnum.CLAUDE_3_5_SONNET_20241022, modelId: 'claude-3.5-sonnet' };
+}
+
 /**
- * Convert a model name string to its protobuf enum value
- * @param modelName - Model name (e.g., "claude-4-sonnet", "gpt-4o")
- * @returns The corresponding enum value, defaults to CLAUDE_3_5_SONNET if unknown
+ * Convert a model name string (optionally including variant) to enum
  */
-export function modelNameToEnum(modelName: string): ModelEnumValue {
-  const normalized = modelName.toLowerCase().trim();
-  return MODEL_NAME_TO_ENUM[normalized] ?? ModelEnum.CLAUDE_3_5_SONNET_20241022;
+export function modelNameToEnum(modelName: string, variantOverride?: string): ModelEnumValue {
+  return resolveModel(modelName, variantOverride).enumValue;
 }
 
 /**
@@ -393,42 +665,63 @@ export function enumToModelName(enumValue: ModelEnumValue): string {
 }
 
 /**
- * Get all supported model names
- * @returns Array of all supported model name strings
+ * Get all supported model names (includes legacy aliases)
  */
 export function getSupportedModels(): string[] {
-  return Object.keys(MODEL_NAME_TO_ENUM);
+  const fromVariants = Object.keys(VARIANT_CATALOG);
+  const aliases: string[] = [];
+  for (const entry of Object.values(VARIANT_CATALOG)) {
+    if (entry.aliases) aliases.push(...entry.aliases);
+    if (entry.variants) {
+      for (const variantKey of Object.keys(entry.variants)) {
+        aliases.push(`${entry.id}-${variantKey}`);
+        for (const alias of entry.aliases || []) {
+          aliases.push(`${alias}-${variantKey}`);
+        }
+      }
+    }
+  }
+  return Array.from(new Set([...fromVariants, ...aliases, ...Object.keys(MODEL_NAME_TO_ENUM)]));
 }
 
 /**
- * Check if a model name is supported
- * @param modelName - Model name to check
- * @returns True if the model is supported
+ * Check if a model name is supported (canonical or alias or variant)
  */
 export function isModelSupported(modelName: string): boolean {
-  return modelName.toLowerCase().trim() in MODEL_NAME_TO_ENUM;
+  const normalized = normalizeModelId(modelName);
+  const { base, variant } = splitModelAndVariant(normalized);
+  const baseId = ALIAS_TO_ID[base] || base;
+  if (variant && VARIANT_CATALOG[baseId]?.variants?.[variant]) return true;
+  if (VARIANT_CATALOG[baseId]) return true;
+  return normalized in MODEL_NAME_TO_ENUM;
 }
 
-/**
- * Get the default model name
- * @returns The default model name
- */
+/** Default canonical model */
 export function getDefaultModel(): string {
   return 'claude-3.5-sonnet';
 }
 
-/**
- * Get the default model enum value
- * @returns The default model enum value
- */
 export function getDefaultModelEnum(): ModelEnumValue {
   return ModelEnum.CLAUDE_3_5_SONNET_20241022;
 }
 
 /**
- * Get canonical model names (one per enum value, no aliases)
- * @returns Array of canonical model names
+ * Canonical models (no variants), aligned with OpenCode listing
  */
 export function getCanonicalModels(): string[] {
-  return Object.values(ENUM_TO_MODEL_NAME).filter((v): v is string => v !== undefined);
+  const bases = new Set<string>(Object.keys(VARIANT_CATALOG));
+
+  // Add non-variant canonical names derived from enum mapping
+  for (const name of Object.values(ENUM_TO_MODEL_NAME)) {
+    if (!name) continue;
+    if (VARIANT_NAME_SET.has(name)) continue; // skip variant entries
+    if (!bases.has(name)) bases.add(name);
+  }
+
+  return Array.from(bases).sort();
+}
+
+export function getModelVariants(modelId: string): Record<string, VariantMeta> | undefined {
+  const baseId = ALIAS_TO_ID[normalizeModelId(modelId)] || normalizeModelId(modelId);
+  return VARIANT_CATALOG[baseId]?.variants;
 }

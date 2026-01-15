@@ -8,7 +8,7 @@
 import * as http2 from 'http2';
 import * as crypto from 'crypto';
 import { ChatMessageSource } from './types.js';
-import { modelNameToEnum } from './models.js';
+import { resolveModel } from './models.js';
 import { WindsurfCredentials, WindsurfError, WindsurfErrorCode } from './auth.js';
 
 // ============================================================================
@@ -26,6 +26,7 @@ export interface StreamChatOptions {
   onChunk?: (text: string) => void;
   onComplete?: (fullText: string) => void;
   onError?: (error: Error) => void;
+  variantOverride?: string;
 }
 
 // ============================================================================
@@ -479,8 +480,10 @@ export function streamChat(
   options: StreamChatOptions
 ): Promise<string> {
   const { csrfToken, port, apiKey, version } = credentials;
-  const modelEnum = modelNameToEnum(options.model);
-  const body = buildChatRequest(apiKey, version, modelEnum, options.messages, options.model);
+  const resolved = resolveModel(options.model);
+  const modelEnum = resolved.enumValue;
+  const modelName = resolved.variant ? `${resolved.modelId}:${resolved.variant}` : resolved.modelId;
+  const body = buildChatRequest(apiKey, version, modelEnum, options.messages, modelName);
 
   return new Promise((resolve, reject) => {
     const client = http2.connect(`http://localhost:${port}`);
@@ -570,8 +573,10 @@ export async function* streamChatGenerator(
   options: Pick<StreamChatOptions, 'model' | 'messages'>
 ): AsyncGenerator<string, void, unknown> {
   const { csrfToken, port, apiKey, version } = credentials;
-  const modelEnum = modelNameToEnum(options.model);
-  const body = buildChatRequest(apiKey, version, modelEnum, options.messages, options.model);
+  const resolved = resolveModel(options.model);
+  const modelEnum = resolved.enumValue;
+  const modelName = resolved.variant ? `${resolved.modelId}:${resolved.variant}` : resolved.modelId;
+  const body = buildChatRequest(apiKey, version, modelEnum, options.messages, modelName);
 
   const client = http2.connect(`http://localhost:${port}`);
 

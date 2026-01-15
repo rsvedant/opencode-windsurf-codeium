@@ -18,7 +18,12 @@ import * as crypto from 'crypto';
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import { getCredentials, isWindsurfRunning, WindsurfCredentials } from './plugin/auth.js';
 import { streamChatGenerator, ChatMessage } from './plugin/grpc-client.js';
-import { getDefaultModel, getCanonicalModels } from './plugin/models.js';
+import {
+  getDefaultModel,
+  getCanonicalModels,
+  getModelVariants,
+  resolveModel,
+} from './plugin/models.js';
 import { PLUGIN_ID } from './constants.js';
 
 // ============================================================================
@@ -42,6 +47,21 @@ interface ChatCompletionRequest {
       parameters?: any;
     };
   }>;
+  providerOptions?: Record<string, unknown>;
+}
+
+function extractVariantFromProviderOptions(providerOptions: Record<string, unknown> | undefined): string | undefined {
+  if (!providerOptions) return undefined;
+  const windsurf = (providerOptions as any).windsurf as Record<string, unknown> | undefined;
+  const candidate =
+    (windsurf?.variant as string | undefined) ??
+    (windsurf?.variantID as string | undefined) ??
+    (windsurf?.variantId as string | undefined) ??
+    (providerOptions as any).variant ??
+    (providerOptions as any).variantID ??
+    (providerOptions as any).variantId;
+  if (candidate && typeof candidate === 'string') return candidate;
+  return undefined;
 }
 
 async function runWindsurfOnce(
@@ -454,7 +474,12 @@ function createStreamingResponse(
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const responseId = `chatcmpl-${crypto.randomUUID()}`;
-  const model = request.model || getDefaultModel();
+  const requestedModel = request.model || getDefaultModel();
+  const variantOverride = extractVariantFromProviderOptions(request.providerOptions);
+  const resolved = resolveModel(requestedModel, variantOverride);
+  const effectiveModel = resolved.variant
+    ? `${resolved.modelId}:${resolved.variant}`
+    : resolved.modelId;
 
   return new ReadableStream({
     async start(controller) {
@@ -471,14 +496,14 @@ function createStreamingResponse(
           }));
 
         const generator = streamChatGenerator(credentials, {
-          model,
+          model: effectiveModel,
           messages,
         });
 
         for await (const chunk of generator) {
           const responseChunk = createOpenAICompatibleResponse(
             responseId,
-            model,
+            requestedModel,
             chunk,
             true
           );
@@ -490,7 +515,7 @@ function createStreamingResponse(
         // Send final chunk with finish_reason
         const finalChunk = createOpenAICompatibleResponse(
           responseId,
-          model,
+          requestedModel,
           '',
           true,
           'stop'
@@ -524,7 +549,12 @@ async function createNonStreamingResponse(
   request: ChatCompletionRequest
 ): Promise<ChatCompletionResponse> {
   const responseId = `chatcmpl-${crypto.randomUUID()}`;
-  const model = request.model || getDefaultModel();
+  const requestedModel = request.model || getDefaultModel();
+  const variantOverride = extractVariantFromProviderOptions(request.providerOptions);
+  const resolved = resolveModel(requestedModel, variantOverride);
+  const effectiveModel = resolved.variant
+    ? `${resolved.modelId}:${resolved.variant}`
+    : resolved.modelId;
   const chunks: string[] = [];
 
   // Convert messages
@@ -539,7 +569,7 @@ async function createNonStreamingResponse(
     }));
 
   const generator = streamChatGenerator(credentials, {
-    model,
+    model: effectiveModel,
     messages,
   });
 
@@ -550,7 +580,7 @@ async function createNonStreamingResponse(
   const fullContent = chunks.join('');
   return createOpenAICompatibleResponse(
     responseId,
-    model,
+    requestedModel,
     fullContent,
     false,
     'stop'
@@ -613,12 +643,23 @@ async function ensureWindsurfProxyServer(): Promise<string> {
         return new Response(
           JSON.stringify({
             object: 'list',
-            data: models.map((id) => ({
-              id,
-              object: 'model',
-              created: Math.floor(Date.now() / 1000),
-              owned_by: 'windsurf',
-            })),
+            data: models.map((id) => {
+              const variants = getModelVariants(id);
+              return {
+                id,
+                object: 'model',
+                created: Math.floor(Date.now() / 1000),
+                owned_by: 'windsurf',
+                ...(variants
+                  ? {
+                      variants: Object.entries(variants).map(([name, meta]) => ({
+                        id: name,
+                        description: meta.description,
+                      })),
+                    }
+                  : {}),
+              };
+            }),
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
