@@ -11,10 +11,10 @@ This is an **OpenCode plugin** that enables authentication with Windsurf/Codeium
 ## Build & Test
 
 ```bash
-npm install      # Install dependencies
-npm run build    # Compile TypeScript
-npm run typecheck # Type checking only
-npm test         # Run tests
+bun install      # Install dependencies
+bun run build    # Compile TypeScript
+bun run typecheck # Type checking only
+bun test         # Run tests
 ```
 
 ## Module Structure
