@@ -34,7 +34,7 @@ Add the following to your OpenCode config (typically `~/.config/opencode/config.
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-windsurf-codeium"],
+  "plugin": ["opencode-windsurf-codeium@beta"],
   "provider": {
     "windsurf": {
       "npm": "@ai-sdk/openai-compatible",
@@ -42,19 +42,59 @@ Add the following to your OpenCode config (typically `~/.config/opencode/config.
         "baseURL": "http://127.0.0.1:42100/v1"
       },
       "models": {
-        "claude-4.5-opus": { "name": "Claude 4.5 Opus (Windsurf)", "limit": { "context": 200000, "output": 8192 } },
-        "gpt-5.2": {
-          "name": "GPT 5.2 (Windsurf)",
-          "limit": { "context": 200000, "output": 8192 },
-          "variants": { "low": {}, "medium": {}, "high": {}, "xhigh": {}, "priority": {}, "low-priority": {}, "high-priority": {}, "xhigh-priority": {} }
+        "claude-4.5-opus-thinking": {
+          "name": "Claude 4.5 Opus Thinking (Windsurf)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        },
+        "gpt-5.1-codex-max": {
+          "name": "GPT 5.1 Codex Max (Windsurf)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          },
+          "variants": {
+            "low": {},
+            "medium": {},
+            "high": {}
+          }
         },
         "gemini-3.0-pro": {
           "name": "Gemini 3.0 Pro (Windsurf)",
-          "limit": { "context": 200000, "output": 8192 },
-          "variants": { "minimal": {}, "low": {}, "medium": {}, "high": {} }
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          },
+          "variants": {
+            "minimal": {},
+            "low": {},
+            "medium": {},
+            "high": {}
+          }
         },
-        "deepseek-r1": { "name": "DeepSeek R1 (Windsurf)", "limit": { "context": 64000, "output": 8192 } },
-        "swe-1.5": { "name": "SWE 1.5 (Windsurf)", "limit": { "context": 128000, "output": 32000 } }
+        "minimax-m2.1": {
+          "name": "Minimax M2.1 (Windsurf)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        },
+        "glm-4.7": {
+          "name": "GLM 4.7 (Windsurf)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        },
+        "glm-4.7-fast": {
+          "name": "GLM 4.7 Fast (Windsurf)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        }
       }
     }
   }
