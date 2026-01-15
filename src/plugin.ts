@@ -245,12 +245,18 @@ function summarizeTool(tool: ToolDef): string {
 
   let paramsSummary = '';
   if (params && typeof params === 'object') {
-    const props = params.properties && typeof params.properties === 'object' ? Object.keys(params.properties) : [];
-    const required = Array.isArray(params.required) ? params.required : [];
-    paramsSummary = `args: { ${props.join(', ')} } required: [${required.join(', ')}]`;
+    try {
+      paramsSummary = `schema:\n${JSON.stringify(params, null, 2)}`;
+    } catch {
+      paramsSummary = `schema: ${String(params)}`;
+    }
   }
 
-  return `- ${name}${description ? `: ${description}` : ''}${paramsSummary ? ` (${paramsSummary})` : ''}`;
+  const lines = [`- ${name}${description ? `: ${description}` : ''}`];
+  if (paramsSummary) {
+    lines.push(paramsSummary);
+  }
+  return lines.join('\n');
 }
 
 function extractTextParts(content: string | Array<{ type: string; text?: string }>): string {
@@ -296,6 +302,8 @@ function buildToolPrompt(request: ChatCompletionRequest): string {
     'STRICT OUTPUT:',
     '- Output MUST be exactly one JSON object and nothing else.',
     '- If you output anything outside JSON, your answer is discarded.',
+    '- DO NOT emit <tool_call> tags or prose. Only JSON.',
+    '- Arguments MUST follow each tool\'s JSON schema exactly (types, nesting, required fields).',
     '',
     'RESPONSE FORMAT:',
     '- Call tool(s):',
@@ -314,6 +322,39 @@ type ToolCallPlan =
   | { action: 'final'; content: string }
   | { action: 'tool_call'; tool_calls: Array<{ name: string; arguments: any }> };
 
+function normalizeToolArguments(raw: any): any {
+  if (raw == null) return {};
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    const looksJson =
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'));
+    if (looksJson) {
+      try {
+        return normalizeToolArguments(JSON.parse(trimmed));
+      } catch {
+        return raw;
+      }
+    }
+    return raw;
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.map((item) => normalizeToolArguments(item));
+  }
+
+  if (typeof raw === 'object') {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      result[key] = normalizeToolArguments(value);
+    }
+    return result;
+  }
+
+  return raw;
+}
+
 function parseToolCallPlan(output: string): ToolCallPlan | null {
   const start = output.indexOf('{');
   const end = output.lastIndexOf('}');
@@ -329,12 +370,35 @@ function parseToolCallPlan(output: string): ToolCallPlan | null {
         action: 'tool_call',
         tool_calls: parsed.tool_calls
           .filter((t: any) => t && typeof t.name === 'string')
-          .map((t: any) => ({ name: t.name, arguments: t.arguments ?? {} })),
+          .map((t: any) => ({ name: t.name, arguments: normalizeToolArguments(t.arguments) })),
       };
     }
     return null;
   } catch {
-    return null;
+    // heuristic: look for one or more <tool_call>name {json}
+    const matches = [...output.matchAll(/<tool_call>\s*([\w.-]+)\s*(\{[\s\S]*?\})(?=\s*(?:<tool_call>|$))/g)];
+    if (matches.length === 0) {
+      return null;
+    }
+
+    const tool_calls = matches
+      .map((match) => {
+        const name = match[1];
+        const rawArgs = match[2];
+        try {
+          const args = JSON.parse(rawArgs);
+          return { name, arguments: normalizeToolArguments(args) };
+        } catch {
+          return null;
+        }
+      })
+      .filter((tc): tc is { name: string; arguments: any } => Boolean(tc));
+
+    if (tool_calls.length === 0) {
+      return null;
+    }
+
+    return { action: 'tool_call', tool_calls };
   }
 }
 
@@ -572,8 +636,15 @@ async function ensureWindsurfProxyServer(): Promise<string> {
           const requestBody = body as ChatCompletionRequest;
           const isStreaming = requestBody.stream === true;
 
+          const hasToolsField = Array.isArray(requestBody.tools) && requestBody.tools.length > 0;
+          const hasToolMessages = requestBody.messages?.some(
+            (m) =>
+              m.role === 'tool' ||
+              (m.role === 'assistant' && Array.isArray((m as any).tool_calls) && (m as any).tool_calls.length > 0)
+          );
+
           // If tools are requested, run local planning loop (non-streaming only).
-          if (Array.isArray(requestBody.tools) && requestBody.tools.length > 0) {
+          if (hasToolsField || hasToolMessages) {
             if (isStreaming) {
               const stream = handleToolPlanningStream(credentials, requestBody);
               return new Response(stream, {

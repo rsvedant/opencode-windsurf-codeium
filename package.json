@@ -1,6 +1,6 @@
 {
   "name": "opencode-windsurf-codeium",
-  "version": "0.1.19",
+  "version": "0.1.23",
   "description": "OpenCode plugin for Windsurf/Codeium authentication - use Windsurf models in OpenCode",
   "type": "module",
   "main": "./dist/index.js",
