@@ -54,6 +54,7 @@ Notes:
 - Assistant replies are encoded as plain text (field 5) while user/system/tool use intent wrapper.
 - We send both model enum and `chat_model_name` for fidelity.
 - Assistant/tool messages from history are filtered before sending to Windsurf.
+- When `tools` are provided, we build a tool prompt (with system messages) and ask Windsurf to produce `tool_calls`/final text. Tool execution remains in OpenCode (MCP/tool registry).
 
 ### 4. Model Enum Mapping
 Model names are mapped to protobuf enum values extracted from Windsurf's extension.js:

@@ -8,6 +8,7 @@ OpenCode plugin for Windsurf/Codeium authentication - use Windsurf models in Ope
 - Automatic credential discovery (CSRF token, port, API key)
 - Transparent REST↔gRPC translation over HTTP/2
 - Zero extra auth prompts when Windsurf is running
+- OpenCode tool-calling compatible: tools are planned via Windsurf inference but executed by OpenCode (MCP/tool registry remains authoritative)
 
 ## Overview
 
@@ -97,6 +98,7 @@ src/
 3. **gRPC Communication**: Sends requests to `localhost:{port}` using HTTP/2 gRPC protocol
 4. **Response Transformation**: Converts gRPC responses to OpenAI-compatible SSE format (assistant/tool turns are not replayed back to Windsurf)
 5. **Model Naming**: Sends both model enum and `chat_model_name` for fidelity with Windsurf’s expectations
+6. **Tool Planning**: When `tools` are provided, we build a tool-calling prompt (with system messages) and ask Windsurf to produce `tool_calls`/final text. Tool execution and MCP tool registry stay on OpenCode’s side.
 
 ### Supported Models (canonical names)
 
@@ -140,7 +142,7 @@ bun test
 
 - **Windsurf must be running** - The plugin communicates with the local language server
 - **macOS focus** - Linux/Windows paths need verification
-- **Tool calling** - Not yet implemented (chat-only)
+- **Tool execution** - OpenCode executes tools; plugin only plans tool_calls via Windsurf inference
 
 ## Further Reading
 
