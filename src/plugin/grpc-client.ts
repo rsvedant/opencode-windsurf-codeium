@@ -120,10 +120,11 @@ function encodeChatMessageIntent(text: string): number[] {
  * 
  * ChatMessage structure (from reverse engineering):
  * Field 1: message_id (string, required)
- * Field 2: source (enum: 1=USER, 2=SYSTEM)
+ * Field 2: source (enum: 1=USER, 2=SYSTEM, 3=ASSISTANT)
  * Field 3: timestamp (google.protobuf.Timestamp, required)
  * Field 4: conversation_id (string, required)
- * Field 5: intent (ChatMessageIntent, oneof content)
+ * Field 5: For USER/SYSTEM/TOOL: intent (ChatMessageIntent)
+ *          For ASSISTANT: text (string)
  */
 function encodeChatMessage(content: string, source: number, conversationId: string): number[] {
   const messageId = generateUUID();
@@ -142,9 +143,14 @@ function encodeChatMessage(content: string, source: number, conversationId: stri
   // Field 4: conversation_id (required)
   bytes.push(...encodeString(4, conversationId));
   
-  // Field 5: intent (ChatMessageIntent)
-  const intent = encodeChatMessageIntent(content);
-  bytes.push(...encodeMessage(5, intent));
+  // Field 5: content
+  if (source === ChatMessageSource.ASSISTANT) {
+    // Assistant replies use plain text field
+    bytes.push(...encodeString(5, content));
+  } else {
+    const intent = encodeChatMessageIntent(content);
+    bytes.push(...encodeMessage(5, intent));
+  }
   
   return bytes;
 }
@@ -203,7 +209,8 @@ function buildChatRequest(
   apiKey: string,
   version: string,
   modelEnum: number,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  modelName?: string
 ): Buffer {
   const metadata = encodeMetadata(apiKey, version);
   const conversationId = generateUUID();
@@ -235,6 +242,11 @@ function buildChatRequest(
   
   // Field 4: model enum
   request.push(...encodeVarintField(4, modelEnum));
+
+  // Field 5: chat_model_name (string) if provided
+  if (modelName) {
+    request.push(...encodeString(5, modelName));
+  }
 
   const payload = Buffer.from(request);
 
@@ -440,29 +452,14 @@ function extractTextFromChunk(chunk: Buffer): string {
 }
 
 /**
- * Fallback heuristic text extraction for edge cases
+ * Fallback heuristic text extraction - DISABLED
+ * The proper protobuf parsing should handle all cases.
+ * If it fails, we return empty rather than risk returning garbage.
  */
-function extractTextHeuristic(chunk: Buffer): string {
-  // Convert to string, filtering out non-printable characters
-  const readable = chunk
-    .toString('utf8')
-    .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // Look for text content that doesn't look like UUIDs or binary artifacts
-  const parts = readable.split(/\s{2,}/);
-  for (const part of parts) {
-    const cleaned = part.trim();
-    if (
-      cleaned.length > 2 &&
-      !cleaned.match(/^[a-f0-9-]{8,}$/i) && // Not a UUID
-      !cleaned.match(/^[\x00-\x1f\x7f-\xff]+$/) // Not binary
-    ) {
-      return cleaned;
-    }
-  }
-
+function extractTextHeuristic(_chunk: Buffer): string {
+  // Heuristic extraction is too unreliable and returns garbage metadata.
+  // The proper protobuf parsing (extractTextFromResponse) should work.
+  // If it doesn't, we return empty string rather than corrupted output.
   return '';
 }
 
@@ -483,7 +480,7 @@ export function streamChat(
 ): Promise<string> {
   const { csrfToken, port, apiKey, version } = credentials;
   const modelEnum = modelNameToEnum(options.model);
-  const body = buildChatRequest(apiKey, version, modelEnum, options.messages);
+  const body = buildChatRequest(apiKey, version, modelEnum, options.messages, options.model);
 
   return new Promise((resolve, reject) => {
     const client = http2.connect(`http://localhost:${port}`);
@@ -574,7 +571,7 @@ export async function* streamChatGenerator(
 ): AsyncGenerator<string, void, unknown> {
   const { csrfToken, port, apiKey, version } = credentials;
   const modelEnum = modelNameToEnum(options.model);
-  const body = buildChatRequest(apiKey, version, modelEnum, options.messages);
+  const body = buildChatRequest(apiKey, version, modelEnum, options.messages, options.model);
 
   const client = http2.connect(`http://localhost:${port}`);
 

@@ -134,8 +134,8 @@ export function getCSRFToken(): string {
 }
 
 /**
- * Get the language server port from process arguments
- * The actual gRPC port is extension_server_port + 2
+ * Get the language server gRPC port dynamically using lsof
+ * The port offset from extension_server_port varies (--random_port flag), so we use lsof
  */
 export function getPort(): number {
   const processInfo = getLanguageServerProcess();
@@ -147,28 +147,46 @@ export function getPort(): number {
     );
   }
   
-  // Try to get extension_server_port from process args
-  const portMatch = processInfo.match(/--extension_server_port\s+(\d+)/);
-  if (portMatch) {
-    // The gRPC port is extension_server_port + 2
-    return parseInt(portMatch[1], 10) + 2;
-  }
+  // Extract PID from ps output (second column)
+  const pidMatch = processInfo.match(/^\s*\S+\s+(\d+)/);
+  const pid = pidMatch ? pidMatch[1] : null;
   
-  // Fallback: try to find from lsof
-  if (process.platform !== 'win32') {
+  // Get extension_server_port as a reference point
+  const portMatch = processInfo.match(/--extension_server_port\s+(\d+)/);
+  const extPort = portMatch ? parseInt(portMatch[1], 10) : null;
+  
+  // Use lsof to find actual listening ports for this specific PID
+  if (process.platform !== 'win32' && pid) {
     try {
-      const pattern = getLanguageServerPattern();
       const lsof = execSync(
-        `lsof -c ${pattern.substring(0, 15)} -i -P 2>/dev/null | grep LISTEN`,
+        `lsof -p ${pid} -i -P -n 2>/dev/null | grep LISTEN`,
         { encoding: 'utf8', timeout: 15000 }
       );
-      const match = lsof.match(/:(\d+)\s+\(LISTEN\)/);
-      if (match) {
-        return parseInt(match[1], 10);
+      
+      // Extract all listening ports
+      const portMatches = lsof.matchAll(/:(\d+)\s+\(LISTEN\)/g);
+      const ports = Array.from(portMatches).map(m => parseInt(m[1], 10));
+      
+      if (ports.length > 0) {
+        // If we have extension_server_port, prefer the port closest to it (usually +3)
+        if (extPort) {
+          // Sort by distance from extPort and pick the closest one > extPort
+          const candidatePorts = ports.filter(p => p > extPort).sort((a, b) => a - b);
+          if (candidatePorts.length > 0) {
+            return candidatePorts[0]; // Return the first port after extPort
+          }
+        }
+        // Otherwise just return the first listening port
+        return ports[0];
       }
     } catch {
-      // Ignore fallback errors
+      // Fall through to offset-based approach
     }
+  }
+  
+  // Fallback: try common offsets (+3, +2, +4)
+  if (extPort) {
+    return extPort + 3;
   }
   
   throw new WindsurfError(

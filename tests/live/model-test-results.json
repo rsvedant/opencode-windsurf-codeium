@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-14T10:34:24.714Z",
+  "timestamp": "2026-01-15T01:09:42.982Z",
   "credentials": {
-    "port": 53301,
-    "version": "1.13.6"
+    "port": 56325,
+    "version": "1.13.8"
   },
   "summary": {
     "total": 93,
@@ -14,652 +14,652 @@
       "model": "gpt-4",
       "enumValue": 30,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 162
+      "responseLength": 105,
+      "duration": 98
     },
     {
       "model": "gpt-4-turbo",
       "enumValue": 37,
       "status": "pass",
-      "responseLength": 178,
-      "duration": 91
+      "responseLength": 105,
+      "duration": 84
     },
     {
       "model": "claude-3-opus",
       "enumValue": 63,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 91
+      "responseLength": 105,
+      "duration": 82
     },
     {
       "model": "claude-3-sonnet",
       "enumValue": 64,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 98
+      "responseLength": 105,
+      "duration": 91
     },
     {
       "model": "mistral-7b",
       "enumValue": 77,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 87
+      "responseLength": 105,
+      "duration": 81
     },
     {
       "model": "llama-3.1-405b",
       "enumValue": 105,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 89
+      "responseLength": 105,
+      "duration": 81
     },
     {
       "model": "llama-3.1-8b",
       "enumValue": 106,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 104
+      "responseLength": 106,
+      "duration": 85
     },
     {
       "model": "llama-3.1-70b",
       "enumValue": 107,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 91
+      "responseLength": 105,
+      "duration": 96
     },
     {
       "model": "gpt-4o",
       "enumValue": 109,
       "status": "pass",
-      "responseLength": 430,
-      "duration": 414
+      "responseLength": 65,
+      "duration": 420
     },
     {
       "model": "gpt-4o-mini",
       "enumValue": 113,
       "status": "pass",
-      "responseLength": 429,
-      "duration": 500
+      "responseLength": 61,
+      "duration": 490
     },
     {
       "model": "claude-3.5-sonnet",
       "enumValue": 166,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 850
+      "responseLength": 51,
+      "duration": 732
     },
     {
       "model": "claude-3.5-haiku",
       "enumValue": 171,
       "status": "pass",
-      "responseLength": 347,
-      "duration": 624
+      "responseLength": 50,
+      "duration": 571
     },
     {
       "model": "claude-3-haiku",
       "enumValue": 172,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 85
+      "responseLength": 105,
+      "duration": 90
     },
     {
       "model": "qwen-2.5-7b",
       "enumValue": 178,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 94
+      "responseLength": 106,
+      "duration": 87
     },
     {
       "model": "qwen-2.5-32b",
       "enumValue": 179,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 106
+      "responseLength": 105,
+      "duration": 99
     },
     {
       "model": "qwen-2.5-72b",
       "enumValue": 180,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 96
+      "responseLength": 105,
+      "duration": 81
     },
     {
       "model": "gemini-2.0-flash",
       "enumValue": 184,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 95
+      "responseLength": 105,
+      "duration": 88
     },
     {
       "model": "deepseek-v3",
       "enumValue": 205,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 645
+      "responseLength": 51,
+      "duration": 1639
     },
     {
       "model": "deepseek-r1",
       "enumValue": 206,
       "status": "pass",
-      "responseLength": 626,
-      "duration": 1563
+      "responseLength": 468,
+      "duration": 1652
     },
     {
       "model": "o3-mini",
       "enumValue": 207,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 91
+      "responseLength": 105,
+      "duration": 82
     },
     {
       "model": "llama-3.3-70b",
       "enumValue": 208,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 85
+      "responseLength": 106,
+      "duration": 89
     },
     {
       "model": "llama-3.3-70b-r1",
       "enumValue": 209,
       "status": "pass",
-      "responseLength": 178,
-      "duration": 89
+      "responseLength": 105,
+      "duration": 107
     },
     {
       "model": "grok-2",
       "enumValue": 212,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 86
+      "responseLength": 105,
+      "duration": 85
     },
     {
       "model": "deepseek-r1-slow",
       "enumValue": 215,
       "status": "pass",
-      "responseLength": 177,
+      "responseLength": 106,
       "duration": 95
     },
     {
       "model": "deepseek-r1-fast",
       "enumValue": 216,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 88
+      "responseLength": 105,
+      "duration": 90
     },
     {
       "model": "grok-3",
       "enumValue": 217,
       "status": "pass",
-      "responseLength": 260,
-      "duration": 531
+      "responseLength": 40,
+      "duration": 533
     },
     {
       "model": "o3",
       "enumValue": 218,
       "status": "pass",
-      "responseLength": 346,
-      "duration": 1337
+      "responseLength": 51,
+      "duration": 1858
     },
     {
       "model": "qwen-2.5-32b-r1",
       "enumValue": 224,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 91
+      "responseLength": 105,
+      "duration": 96
     },
     {
       "model": "claude-3.7-sonnet",
       "enumValue": 226,
       "status": "pass",
-      "responseLength": 259,
-      "duration": 870
+      "responseLength": 53,
+      "duration": 1430
     },
     {
       "model": "claude-3.7-sonnet-thinking",
       "enumValue": 227,
       "status": "pass",
-      "responseLength": 262,
-      "duration": 368
+      "responseLength": 115,
+      "duration": 243
     },
     {
       "model": "grok-3-mini",
       "enumValue": 234,
       "status": "pass",
-      "responseLength": 29830,
-      "duration": 2254
+      "responseLength": 3836,
+      "duration": 2268
     },
     {
       "model": "gemini-2.5-pro",
       "enumValue": 246,
       "status": "pass",
-      "responseLength": 429,
-      "duration": 1433
+      "responseLength": 61,
+      "duration": 1200
     },
     {
       "model": "gpt-4.1",
       "enumValue": 259,
       "status": "pass",
-      "responseLength": 429,
-      "duration": 411
+      "responseLength": 65,
+      "duration": 517
     },
     {
       "model": "gpt-4.1-mini",
       "enumValue": 260,
       "status": "pass",
-      "responseLength": 430,
-      "duration": 409
+      "responseLength": 61,
+      "duration": 400
     },
     {
       "model": "gpt-4.1-nano",
       "enumValue": 261,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 95
+      "responseLength": 105,
+      "duration": 102
     },
     {
       "model": "o3-low",
       "enumValue": 262,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 81
+      "responseLength": 105,
+      "duration": 84
     },
     {
       "model": "o3-high",
       "enumValue": 263,
       "status": "pass",
-      "responseLength": 429,
-      "duration": 1602
+      "responseLength": 61,
+      "duration": 1375
     },
     {
       "model": "o4-mini",
       "enumValue": 264,
       "status": "pass",
-      "responseLength": 178,
-      "duration": 85
+      "responseLength": 106,
+      "duration": 83
     },
     {
       "model": "o4-mini-low",
       "enumValue": 265,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 101
+      "responseLength": 105,
+      "duration": 102
     },
     {
       "model": "o4-mini-high",
       "enumValue": 266,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 87
+      "responseLength": 105,
+      "duration": 88
     },
     {
       "model": "claude-4-sonnet",
       "enumValue": 281,
       "status": "pass",
-      "responseLength": 501,
-      "duration": 2654
+      "responseLength": 51,
+      "duration": 714
     },
     {
       "model": "claude-4-sonnet-thinking",
       "enumValue": 282,
       "status": "pass",
-      "responseLength": 262,
-      "duration": 225
+      "responseLength": 115,
+      "duration": 332
     },
     {
       "model": "claude-4-opus",
       "enumValue": 290,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 83
+      "responseLength": 105,
+      "duration": 87
     },
     {
       "model": "claude-4-opus-thinking",
       "enumValue": 291,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 88
+      "responseLength": 105,
+      "duration": 91
     },
     {
       "model": "o3-pro",
       "enumValue": 294,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 97
+      "responseLength": 106,
+      "duration": 89
     },
     {
       "model": "o3-pro-low",
       "enumValue": 295,
       "status": "pass",
-      "responseLength": 178,
-      "duration": 93
+      "responseLength": 105,
+      "duration": 82
     },
     {
       "model": "o3-pro-high",
       "enumValue": 296,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 97
+      "responseLength": 105,
+      "duration": 80
     },
     {
       "model": "gemini-2.5-flash",
       "enumValue": 312,
       "status": "pass",
-      "responseLength": 259,
-      "duration": 313
+      "responseLength": 39,
+      "duration": 316
     },
     {
       "model": "gemini-2.5-flash-thinking",
       "enumValue": 313,
       "status": "pass",
-      "responseLength": 429,
-      "duration": 1271
+      "responseLength": 61,
+      "duration": 1029
     },
     {
       "model": "kimi-k2",
       "enumValue": 323,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 855
+      "responseLength": 50,
+      "duration": 1283
     },
     {
       "model": "qwen-3-235b",
       "enumValue": 324,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 97
+      "responseLength": 106,
+      "duration": 95
     },
     {
       "model": "qwen-3-coder-480b",
       "enumValue": 325,
       "status": "pass",
-      "responseLength": 345,
-      "duration": 258
+      "responseLength": 50,
+      "duration": 2973
     },
     {
       "model": "qwen-3-coder-480b-fast",
       "enumValue": 327,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 85
+      "responseLength": 105,
+      "duration": 90
     },
     {
       "model": "claude-4.1-opus",
       "enumValue": 328,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 1702
+      "responseLength": 50,
+      "duration": 1716
     },
     {
       "model": "claude-4.1-opus-thinking",
       "enumValue": 329,
       "status": "pass",
-      "responseLength": 4933,
-      "duration": 6805
+      "responseLength": 836,
+      "duration": 7432
     },
     {
       "model": "gpt-5-nano",
       "enumValue": 337,
       "status": "pass",
-      "responseLength": 346,
-      "duration": 519
+      "responseLength": 52,
+      "duration": 688
     },
     {
       "model": "gpt-5-low",
       "enumValue": 339,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 88
+      "responseLength": 105,
+      "duration": 78
     },
     {
       "model": "gpt-5",
       "enumValue": 340,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 86
+      "responseLength": 105,
+      "duration": 95
     },
     {
       "model": "gpt-5-high",
       "enumValue": 341,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 92
+      "responseLength": 105,
+      "duration": 83
     },
     {
       "model": "glm-4.5",
       "enumValue": 342,
       "status": "pass",
-      "responseLength": 2384,
-      "duration": 689
+      "responseLength": 62,
+      "duration": 369
     },
     {
       "model": "gemini-2.5-flash-lite",
       "enumValue": 343,
       "status": "pass",
-      "responseLength": 178,
-      "duration": 85
+      "responseLength": 105,
+      "duration": 97
     },
     {
       "model": "claude-code",
       "enumValue": 344,
       "status": "pass",
-      "responseLength": 167,
-      "duration": 71
+      "responseLength": 96,
+      "duration": 79
     },
     {
       "model": "grok-code-fast",
       "enumValue": 345,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 97
+      "responseLength": 105,
+      "duration": 100
     },
     {
       "model": "gpt-5-codex",
       "enumValue": 346,
       "status": "pass",
-      "responseLength": 856,
-      "duration": 1064
+      "responseLength": 94,
+      "duration": 1125
     },
     {
       "model": "glm-4.5-fast",
       "enumValue": 352,
       "status": "pass",
-      "responseLength": 21974,
-      "duration": 1538
+      "responseLength": 623,
+      "duration": 525
     },
     {
       "model": "claude-4.5-sonnet",
       "enumValue": 353,
       "status": "pass",
-      "responseLength": 178,
-      "duration": 92
+      "responseLength": 105,
+      "duration": 89
     },
     {
       "model": "claude-4.5-sonnet-thinking",
       "enumValue": 354,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 93
+      "responseLength": 105,
+      "duration": 97
     },
     {
       "model": "glm-4.6",
       "enumValue": 356,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 97
+      "responseLength": 105,
+      "duration": 87
     },
     {
       "model": "glm-4.6-fast",
       "enumValue": 357,
       "status": "pass",
-      "responseLength": 21210,
-      "duration": 1577
+      "responseLength": 3194,
+      "duration": 1730
     },
     {
       "model": "swe-1.5",
       "enumValue": 359,
       "status": "pass",
-      "responseLength": 18491,
-      "duration": 1308
+      "responseLength": 4483,
+      "duration": 2231
     },
     {
       "model": "minimax-m2",
       "enumValue": 368,
       "status": "pass",
-      "responseLength": 27008,
-      "duration": 2596
+      "responseLength": 861,
+      "duration": 1422
     },
     {
       "model": "swe-1.5-thinking",
       "enumValue": 369,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 102
+      "responseLength": 105,
+      "duration": 90
     },
     {
       "model": "swe-1.5-slow",
       "enumValue": 377,
       "status": "pass",
-      "responseLength": 430,
-      "duration": 587
+      "responseLength": 62,
+      "duration": 443
     },
     {
       "model": "gemini-3.0-pro-low",
       "enumValue": 378,
       "status": "pass",
-      "responseLength": 606,
-      "duration": 3970
+      "responseLength": 83,
+      "duration": 3943
     },
     {
       "model": "gemini-3.0-pro-high",
       "enumValue": 379,
       "status": "pass",
-      "responseLength": 603,
-      "duration": 5941
+      "responseLength": 83,
+      "duration": 4026
     },
     {
       "model": "gpt-5.1-codex-mini",
       "enumValue": 386,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 95
+      "responseLength": 105,
+      "duration": 84
     },
     {
       "model": "gpt-5.1-codex",
       "enumValue": 389,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 107
+      "responseLength": 106,
+      "duration": 99
     },
     {
       "model": "claude-4.5-opus",
       "enumValue": 391,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 756
+      "responseLength": 53,
+      "duration": 745
     },
     {
       "model": "claude-4.5-opus-thinking",
       "enumValue": 392,
       "status": "pass",
-      "responseLength": 1283,
-      "duration": 1596
+      "responseLength": 165,
+      "duration": 1184
     },
     {
       "model": "kimi-k2-thinking",
       "enumValue": 394,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 96
+      "responseLength": 105,
+      "duration": 90
     },
     {
       "model": "gpt-5.1-codex-max",
       "enumValue": 396,
       "status": "pass",
-      "responseLength": 430,
-      "duration": 8790
+      "responseLength": 130,
+      "duration": 1624
     },
     {
       "model": "gpt-5.2-low",
       "enumValue": 400,
       "status": "pass",
-      "responseLength": 345,
-      "duration": 1241
+      "responseLength": 52,
+      "duration": 1346
     },
     {
       "model": "gpt-5.2",
       "enumValue": 401,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 1038
+      "responseLength": 50,
+      "duration": 1307
     },
     {
       "model": "gpt-5.2-high",
       "enumValue": 402,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 931
+      "responseLength": 50,
+      "duration": 880
     },
     {
       "model": "gpt-5.2-xhigh",
       "enumValue": 403,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 2608
+      "responseLength": 51,
+      "duration": 1960
     },
     {
       "model": "gpt-5.2-priority",
       "enumValue": 406,
       "status": "pass",
-      "responseLength": 344,
-      "duration": 836
+      "responseLength": 51,
+      "duration": 1044
     },
     {
       "model": "deepseek-v3-2",
       "enumValue": 409,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 81
+      "responseLength": 105,
+      "duration": 83
     },
     {
       "model": "gemini-3.0-pro",
       "enumValue": 412,
       "status": "pass",
-      "responseLength": 599,
-      "duration": 4453
+      "responseLength": 89,
+      "duration": 4325
     },
     {
       "model": "gemini-3.0-flash",
       "enumValue": 415,
       "status": "pass",
-      "responseLength": 429,
-      "duration": 2181
+      "responseLength": 83,
+      "duration": 2641
     },
     {
       "model": "gemini-3.0-flash-high",
       "enumValue": 416,
       "status": "pass",
-      "responseLength": 602,
-      "duration": 3269
+      "responseLength": 86,
+      "duration": 2816
     },
     {
       "model": "glm-4.7",
       "enumValue": 417,
       "status": "pass",
-      "responseLength": 4186,
-      "duration": 3121
+      "responseLength": 2108,
+      "duration": 5891
     },
     {
       "model": "glm-4.7-fast",
       "enumValue": 418,
       "status": "pass",
-      "responseLength": 177,
-      "duration": 99
+      "responseLength": 106,
+      "duration": 85
     },
     {
       "model": "minimax-m2.1",
       "enumValue": 419,
       "status": "pass",
-      "responseLength": 1537,
-      "duration": 342
+      "responseLength": 206,
+      "duration": 4233
     }
   ]
 }

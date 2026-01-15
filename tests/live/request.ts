@@ -35,7 +35,7 @@ function getCredentials(): Credentials | null {
 
     return {
       csrfToken: csrfMatch[1],
-      port: parseInt(portMatch[1], 10) + 2,
+      port: parseInt(portMatch[1], 10) + 3,
       version: versionMatch?.[1] || "unknown",
     };
   } catch {

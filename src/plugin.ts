@@ -122,13 +122,15 @@ function createStreamingResponse(
     async start(controller) {
       try {
         // Convert messages to the format expected by gRPC client
-        const messages: ChatMessage[] = request.messages.map((m) => ({
-          role: m.role as ChatMessage['role'],
-          content:
-            typeof m.content === 'string'
-              ? m.content
-              : m.content.map((p) => p.text || '').join(''),
-        }));
+        const messages: ChatMessage[] = request.messages
+          .filter((m) => m.role !== 'assistant' && m.role !== 'tool')
+          .map((m) => ({
+            role: m.role as ChatMessage['role'],
+            content:
+              typeof m.content === 'string'
+                ? m.content
+                : m.content.map((p) => p.text || '').join(''),
+          }));
 
         const generator = streamChatGenerator(credentials, {
           model,
@@ -188,13 +190,15 @@ async function createNonStreamingResponse(
   const chunks: string[] = [];
 
   // Convert messages
-  const messages: ChatMessage[] = request.messages.map((m) => ({
-    role: m.role as ChatMessage['role'],
-    content:
-      typeof m.content === 'string'
-        ? m.content
-        : m.content.map((p) => p.text || '').join(''),
-  }));
+  const messages: ChatMessage[] = request.messages
+    .filter((m) => m.role !== 'assistant' && m.role !== 'tool')
+    .map((m) => ({
+      role: m.role as ChatMessage['role'],
+      content:
+        typeof m.content === 'string'
+          ? m.content
+          : m.content.map((p) => p.text || '').join(''),
+    }));
 
   const generator = streamChatGenerator(credentials, {
     model,
@@ -215,27 +219,169 @@ async function createNonStreamingResponse(
   ) as ChatCompletionResponse;
 }
 
-/**
- * Parse request body from various formats
- */
-function parseRequestBody(body: unknown): ChatCompletionRequest {
-  if (!body) {
-    return { model: getDefaultModel(), messages: [] };
+// ============================================================================
+// Local Proxy Server (like cursor-auth pattern)
+// ============================================================================
+
+const WINDSURF_PROXY_HOST = '127.0.0.1';
+const WINDSURF_PROXY_DEFAULT_PORT = 42100;
+
+function getGlobalKey(): string {
+  return '__opencode_windsurf_proxy_server__';
+}
+
+function openAIError(status: number, message: string, details?: string): Response {
+  return new Response(
+    JSON.stringify({
+      error: {
+        message: details ? `${message}\n${details}` : message,
+        type: 'windsurf_error',
+        param: null,
+        code: null,
+      },
+    }),
+    { status, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
+async function ensureWindsurfProxyServer(): Promise<string> {
+  const key = getGlobalKey();
+  const g = globalThis as any;
+
+  // Return existing server URL if already started
+  const existingBaseURL = g[key]?.baseURL;
+  if (typeof existingBaseURL === 'string' && existingBaseURL.length > 0) {
+    return existingBaseURL;
   }
 
-  if (typeof body === 'string') {
-    return JSON.parse(body);
+  // Mark as starting to avoid duplicate starts
+  g[key] = { baseURL: '' };
+
+  const handler = async (req: Request): Promise<Response> => {
+    try {
+      const url = new URL(req.url);
+
+      // Health check endpoint
+      if (url.pathname === '/health') {
+        return new Response(JSON.stringify({ ok: true, windsurf: isWindsurfRunning() }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Models endpoint
+      if (url.pathname === '/v1/models' || url.pathname === '/models') {
+        const models = getCanonicalModels();
+        return new Response(
+          JSON.stringify({
+            object: 'list',
+            data: models.map((id) => ({
+              id,
+              object: 'model',
+              created: Math.floor(Date.now() / 1000),
+              owned_by: 'windsurf',
+            })),
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Chat completions endpoint
+      if (url.pathname === '/v1/chat/completions' || url.pathname === '/chat/completions') {
+        if (!isWindsurfRunning()) {
+          return openAIError(503, 'Windsurf is not running. Please launch Windsurf first.');
+        }
+
+        try {
+          const credentials = getCredentials();
+          const body = await req.json().catch(() => ({}));
+          const requestBody = body as ChatCompletionRequest;
+          const isStreaming = requestBody.stream === true;
+
+          if (isStreaming) {
+            const stream = createStreamingResponse(credentials, requestBody);
+            return new Response(stream, {
+              status: 200,
+              headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                Connection: 'keep-alive',
+              },
+            });
+          }
+
+          const responseData = await createNonStreamingResponse(credentials, requestBody);
+          return new Response(JSON.stringify(responseData), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        } catch (chatError) {
+          const errMsg = chatError instanceof Error ? chatError.message : String(chatError);
+          return openAIError(500, 'Chat completion failed', errMsg);
+        }
+      }
+
+      return openAIError(404, `Unsupported path: ${url.pathname}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return openAIError(500, 'Proxy error', message);
+    }
+  };
+
+  const bunAny = globalThis as any;
+  if (typeof bunAny.Bun !== 'undefined' && typeof bunAny.Bun.serve === 'function') {
+    // Check if server already running on default port
+    try {
+      const res = await fetch(`http://${WINDSURF_PROXY_HOST}:${WINDSURF_PROXY_DEFAULT_PORT}/health`).catch(() => null);
+      if (res && res.ok) {
+        const baseURL = `http://${WINDSURF_PROXY_HOST}:${WINDSURF_PROXY_DEFAULT_PORT}/v1`;
+        g[key].baseURL = baseURL;
+        return baseURL;
+      }
+    } catch {
+      // ignore
+    }
+
+    const startServer = (port: number) => {
+      return bunAny.Bun.serve({
+        hostname: WINDSURF_PROXY_HOST,
+        port,
+        fetch: handler,
+      });
+    };
+
+    try {
+      const server = startServer(WINDSURF_PROXY_DEFAULT_PORT);
+      const baseURL = `http://${WINDSURF_PROXY_HOST}:${server.port}/v1`;
+      g[key].baseURL = baseURL;
+      return baseURL;
+    } catch (error) {
+      const code = (error as any)?.code;
+      if (code !== 'EADDRINUSE') {
+        throw error;
+      }
+
+      // Port in use - check if it's our server
+      try {
+        const res = await fetch(`http://${WINDSURF_PROXY_HOST}:${WINDSURF_PROXY_DEFAULT_PORT}/health`).catch(() => null);
+        if (res && res.ok) {
+          const baseURL = `http://${WINDSURF_PROXY_HOST}:${WINDSURF_PROXY_DEFAULT_PORT}/v1`;
+          g[key].baseURL = baseURL;
+          return baseURL;
+        }
+      } catch {
+        // ignore
+      }
+
+      // Fallback to random port
+      const server = startServer(0);
+      const baseURL = `http://${WINDSURF_PROXY_HOST}:${server.port}/v1`;
+      g[key].baseURL = baseURL;
+      return baseURL;
+    }
   }
 
-  if (body instanceof ArrayBuffer) {
-    return JSON.parse(new TextDecoder().decode(body));
-  }
-
-  if (typeof body === 'object' && body !== null) {
-    return body as ChatCompletionRequest;
-  }
-
-  return { model: getDefaultModel(), messages: [] };
+  throw new Error('Windsurf proxy server requires Bun runtime');
 }
 
 // ============================================================================
@@ -243,132 +389,37 @@ function parseRequestBody(body: unknown): ChatCompletionRequest {
 // ============================================================================
 
 /**
- * Create the Windsurf plugin
+ * Create the Windsurf plugin (follows cursor-auth pattern)
  */
 export const createWindsurfPlugin =
   (providerId: string = PLUGIN_ID) =>
   async (_context: PluginInput): Promise<Hooks> => {
+    // Start proxy server on plugin load
+    const proxyBaseURL = await ensureWindsurfProxyServer();
+
     return {
       auth: {
         provider: providerId,
 
-        loader: async (
-          _getAuth: () => Promise<unknown>,
-          _provider: unknown
-        ): Promise<Record<string, unknown>> => {
-          // Check if Windsurf is running
-          if (!isWindsurfRunning()) {
-            console.warn(
-              '[windsurf-plugin] Windsurf is not running. Please start Windsurf first.'
-            );
-            return {};
-          }
-
-          return {
-            // Empty API key since we use local credentials
-            apiKey: '',
-            // Use a fake baseURL that our fetch handler intercepts
-            baseURL: 'https://windsurf.local',
-
-            // Custom fetch handler
-            fetch: async (
-              input: string | URL | Request,
-              init?: RequestInit
-            ): Promise<Response> => {
-              const url =
-                typeof input === 'string'
-                  ? input
-                  : input instanceof URL
-                    ? input.href
-                    : input.url;
-
-              // Handle /v1/models - return available models
-              if (url.includes('/models') || url.includes('/v1/models')) {
-                const models = getCanonicalModels();
-                return new Response(
-                  JSON.stringify({
-                    object: 'list',
-                    data: models.map((id) => ({
-                      id,
-                      object: 'model',
-                      created: Math.floor(Date.now() / 1000),
-                      owned_by: 'windsurf',
-                    })),
-                  }),
-                  {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                  }
-                );
-              }
-
-              // Handle chat completions
-              if (
-                url.includes('/chat/completions') ||
-                url.includes('/v1/chat/completions')
-              ) {
-                try {
-                  // Get fresh credentials for each request
-                  const credentials = getCredentials();
-
-                  // Parse request body
-                  const requestBody = parseRequestBody(init?.body);
-                  const isStreaming = requestBody.stream === true;
-
-                  if (isStreaming) {
-                    const stream = createStreamingResponse(
-                      credentials,
-                      requestBody
-                    );
-                    return new Response(stream, {
-                      status: 200,
-                      headers: {
-                        'Content-Type': 'text/event-stream',
-                        'Cache-Control': 'no-cache',
-                        Connection: 'keep-alive',
-                      },
-                    });
-                  }
-
-                  // Non-streaming response
-                  const responseData = await createNonStreamingResponse(
-                    credentials,
-                    requestBody
-                  );
-                  return new Response(JSON.stringify(responseData), {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                  });
-                } catch (error) {
-                  const errorMessage =
-                    error instanceof Error ? error.message : 'Unknown error';
-                  return new Response(
-                    JSON.stringify({
-                      error: {
-                        message: errorMessage,
-                        type: 'windsurf_error',
-                        code: 'windsurf_connection_failed',
-                      },
-                    }),
-                    {
-                      status: 500,
-                      headers: { 'Content-Type': 'application/json' },
-                    }
-                  );
-                }
-              }
-
-              // For any other endpoint, return a generic success
-              return new Response(JSON.stringify({ status: 'ok' }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-              });
-            },
-          };
+        async loader(_getAuth: () => Promise<unknown>) {
+          // Return empty - we handle auth via the proxy server
+          return {};
         },
 
         // No auth methods needed - we use Windsurf's existing auth
         methods: [],
+      },
+
+      // Dynamic baseURL injection (key pattern from cursor-auth)
+      async 'chat.params'(input: any, output: any) {
+        if (input.model?.providerID !== providerId) {
+          return;
+        }
+
+        // Inject the proxy server URL dynamically
+        output.options = output.options || {};
+        output.options.baseURL = proxyBaseURL;
+        output.options.apiKey = output.options.apiKey || 'windsurf-local';
       },
     };
   };
